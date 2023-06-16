@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+
+	<link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/main1.css">
+
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+		<div class="col-xs-12">
+			<h2>Airports</h2>
+			<div class="barChart" id="carTypes"></div>
+		</div>
+
+		<!-- On small screens fills the full grid, on medium+ ones only half -->
+		<div class="col-md-4">
+			<h2>States</h2>
+			<div class="barChart" id="gates"></div>
+		</div>
+
+		<!-- On small screens fills the full grid, on medium+ ones only half -->
+		<div class="col-md-4 col-md-8">
+			<div id="timeline"></div>
+		</div>
+
+  </div>
+</div>
+
+
+<!-- Crossfilter cdn -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter/1.3.12/crossfilter.min.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="js/barChart.js"></script>
+<script src="js/timeSeriesChart.js"></script>
+<script src="js/main.js"></script>
+
+
+<script type="text/javascript">
+	const width = 900;
+	const height = 1200;
+	const svg1 = d3.select("body").append("svg")
+		.attr("width", width)
+		.attr("height", height);
+	 
+	const projection = d3.geoAlbersUsa()
+		.translate([width / 2, height / 5]) // translate to center of screen
+		.scale([1000]); // scale things down so see entire US
+	 
+	const path = d3.geoPath().projection(projection);
+	
+	const tooltip = d3.select("body").append("div1")
+				.attr("class", "tooltip")
+				.style("opacity", 0);
+	 
+	d3.json("https://gist.githubusercontent.com/Bradleykingz/3aa5206b6819a3c38b5d73cb814ed470/raw/a476b9098ba0244718b496697c5b350460d32f99/us-states.json", function(error, uState) {
+	if (error) throw error;
+		svg1.selectAll('path')
+			.data(uState.features)
+			.enter()
+			.append('path')
+			.attr("d", path)
+	});
+	
+	
+	// Map the cities I have lived in!
+ // Map the cities I have lived in!
+d3.csv("data/hierarchy.csv", function(data) {
+
+svg1.selectAll("circle")
+	.data(data)
+	.enter()
+	.append("circle")
+	.attr("cx", function(d) {
+		return projection([d.longitude, d.latitude])[0];
+	})
+	.attr("cy", function(d) {
+		return projection([d.longitude, d.latitude])[1];
+	})
+	.attr("r", function(d) {
+		return Math.sqrt(1) * 4;
+	})
+		.style("fill", "rgb(217,91,67)")	
+		.style("opacity", 0.85)	
+
+	// Modification of custom tooltip code provided by Malcolm Maclean, "D3 Tips and Tricks" 
+	// http://www.d3noob.org/2013/01/adding-tooltips-to-d3js-graph.html
+	.on("mouseover", function(d) {      
+    	tooltip.transition()        
+      	   .duration(200)      
+           .style("opacity", .9);      
+           tooltip.text("    State Name=" +d.OriginState+"    Airport Name=" + d.AirportName)
+           .style("left", (d3.event.pageX) + "px")     
+           .style("top", (d3.event.pageY - 28) + "px");    
+	})   
+
+    // fade out tooltip on mouse out               
+    .on("mouseout", function(d) {       
+        tooltip.transition()        
+           .duration(500)      
+           .style("opacity", 0);   
+    });
+});  
+
+var zoom = d3.zoom()
+      .scaleExtent([1, 8])
+      .on('zoom', function() {
+          svg1.selectAll('path')
+           .attr('transform', d3.event.transform);
+           svg1.selectAll('circle')
+           .attr('transform', d3.event.transform);
+
+});
+// var zoom2 = d3.zoom()
+//       .scaleExtent([1, 8])
+//       .on('zoom', function() {
+//           svg.selectAll('circle')
+//            .attr('transform', d3.event.transform);
+// });
+
+svg1.call(zoom);
+// svg.call(zoom2);
+	
+
+
+
+
+
+
+
+
+//treemap
+
+           var width1 = 600,
+            height1 = 700;
+            
+        var format = d3.formatLocale({
+            decimal: ".",
+            thousands: ",",
+            grouping: [3],
+            currency: ["strikes ", ""]
+        }).format("$,d");
+
+        var nest = d3.nest()
+            .key(function(d) {
+                return d.Country;
+            })
+            .key(function(d) {
+                return d.OriginState;
+            })
+            .key(function(d) {
+                return d.AirportName;
+            })
+            .rollup(function(d) {
+                return d3.sum(d, function(d) {
+                    return d.bird_strikes;
+                });
+            });
+
+        var treemap = d3.treemap()
+            .size([width1, height1])
+            .padding(1)
+            .round(true);
+
+        d3.csv("data/hierarchy.csv", type, function(error, data) {
+            console.log("data",data);
+            if (error) throw error;
+
+            var root = d3.hierarchy({
+                    values: nest.entries(data)
+                }, function(d) {
+                    return d.values;
+                })
+                .sum(function(d) {
+                    return d.value;
+                })
+                .sort(function(a, b) {
+                    return b.value - a.value;
+                });
+
+            treemap(root);
+
+            var node = d3.select("body").append("div2")
+                .selectAll(".node")
+                .data(root.leaves())
+                .enter().append("div")
+                .attr("class", "node")
+                .style("left", function(d) {
+                    return d.x0 + "px";
+                })
+                .style("top", function(d) {
+                    return d.y0 + "px";
+                })
+                .style("width", function(d) {
+                    return d.x1 - d.x0 + "px";
+                })
+                .style("height", function(d) {
+                    return d.y1 - d.y0 + "px";
+                });
+
+            node.append("div")
+                .attr("class", "node-label")
+                .text(function(d) {
+                    // return d.parent.parent.data.key + " to " + d.parent.data.key + "\n" + d.data.key;
+                    return d.parent.data.key + "\n" + d.data.key;
+                });
+
+            node.append("div")
+                .attr("class", "node-value")
+                .text(function(d) {
+                    return format(d.value);
+                });
+        });
+
+        function type(d) {
+            d.bird_strikes = +d.bird_strikes;
+            return d;
+        }
+
+//graph
+
+var svg2 = d3.select("svg"),
+        margin = 300,
+        width3 = 900 - margin,
+        height3 =900 - margin;
+
+    svg2.append("text")
+       .attr("transform", "translate(100,0)")
+       .attr("x", 20)
+       .attr("y", 500)
+       .attr("font-size", "24px")
+       .text("Visualization Representing Aircraft Air line Operator and thier Count ")
+
+    var xScale = d3.scaleBand().range([0, width3]).padding(0.4),
+        yScale = d3.scaleLinear().range([height3, 100]);
+
+    var g = svg2.append("g")
+            .attr("transform", "translate(" + 100 + "," + 400 + ")");
+   //.attr("transform", "rotate(-90)")
+    d3.csv("data/Graph_Visualization_Data.csv", function(data) {
+        
+        xScale.domain(data.map(function(d) { return d.AircraftAirlineOperator; }
+        // .selectAll("text")  
+        // .attr('stroke', 'red')
+        ));
+        yScale.domain([0, d3.max(data, function(d) { 
+            return 1815 +200;
+        //  console.log(d.Count)
+         // return d.Count;
+        })]);
+
+         
+        g.append("g")     // tex
+         .attr("transform", "translate(0," + height3 + ")")
+         .call(d3.axisBottom(xScale))
+         .selectAll("text")  
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em")
+            .attr("transform", "rotate(-90)" );
+            
+  
+        g.append("g")
+         .call(d3.axisLeft(yScale).tickFormat(function(d){return d;}).ticks(10))
+	 .append("text")
+	 .attr("transform", "rotate(-90)")
+	 .attr("y", 10)
+	 .attr('dy', '-5em')
+	 .attr('text-anchor', 'end')
+	 .attr('stroke', 'red')
+	 .text('Count Of Aircraft Airline Operator')
+
+        g.selectAll(".bar")
+         .data(data)
+         .enter().append("rect")
+         .attr("class", "bar")
+	    .on("mouseover", onMouseOver) // Add listener for event
+	   .on("mouseout", onMouseOut)
+         .attr("x", function(d) { return xScale(d.AircraftAirlineOperator); })
+         .attr("y", function(d) { return yScale(d.Count); })
+         .attr("width", xScale.bandwidth())
+	 .transition()
+	 .ease(d3.easeLinear)
+	 .duration(5000)
+	 .delay(function(d,i){ return i * 50})
+         .attr("height", function(d) { return height3 - yScale(d.Count); });
+	
+	// // Mouseover event handler
+
+	function onMouseOver(d, i) {
+		// Get bar's xy values, ,then augment for the tooltip
+		var xPos = parseFloat(d3.select(this).attr('x')) + xScale.bandwidth() / 2;
+		var yPos = parseFloat(d3.select(this).attr('y')) / 2 + height3 / 2
+
+		// Update Tooltip's position and value
+		d3.select('#tooltip')
+			.style('left', xPos + 'px')
+			.style('top', yPos + 'px')
+			.select('#value').text(d.AircraftAirlineOperator+"  =  "+d.Count)
+            // .select('#value').text(d.Count)
+		
+		d3.select('#tooltip').classed('hidden', false);
+
+
+		d3.select(this).attr('class','highlight')
+		d3.select(this)
+	}
+
+	// Mouseout event handler
+	function onMouseOut(d, i){
+		d3.select(this).attr('class','bar')
+		d3.select(this)
+		d3.select('#tooltip').classed('hidden', true);
+	}
+})
+	 
+	</script>
+
+</body>
+</html>
